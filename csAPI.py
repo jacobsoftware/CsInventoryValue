@@ -80,7 +80,7 @@ def addDataFromAPI(myList):
 
             
             if "volume" in apiDict1:
-                print("Wartosc: ",apiDict1["lowest_price"]," Ilość sprzedanych: ",apiDict1["volume"])
+                print("Value: ",apiDict1["lowest_price"]," How many sold in last 24h: ",apiDict1["volume"])
                 
                 if commaSign in apiDict1["volume"]:
 
