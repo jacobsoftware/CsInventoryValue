@@ -5,3 +5,4 @@ This program allow you to check valuve of your inventory, but It's mostly focuse
 2. Save your tokens, auth etc from google in keys.json file
 3. Install python packeges from requirments
 4. Create your own database of items in csdbcreate.py like in examples
+5. Change function parameters for your own needs
