@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from pprint import pprint
 import sys
+import pandas as pd
 
 
 requestCounter=0
@@ -21,6 +22,18 @@ timeAddedOnGS = False
 responseFromServer =  ""
 wait = 0
 sumarryRow = 3
+
+
+# google sheets variables
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+SERVICE_ACCOUNT_FILE = 'keys.json'
+SAMPLE_SPREADSHEET_ID = ''#here u need put spreadsheet id
+creds = None
+creds = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+service = build('sheets', 'v4', credentials=creds)
+sheet = service.spreadsheets() 
+
 
 # reading steam API from endpoints that we have in our database
 def readFromAPI(url):
@@ -80,7 +93,7 @@ def addDataFromAPI(myList):
 
             
             if "volume" in apiDict1:
-                print("Value: ",apiDict1["lowest_price"]," How many sold in last 24h: ",apiDict1["volume"])
+                print("Wartosc: ",apiDict1["lowest_price"]," Ilość sprzedanych: ",apiDict1["volume"])
                 
                 if commaSign in apiDict1["volume"]:
 
@@ -270,15 +283,7 @@ def sumValues(myArray):
 
 #we are sending acquired values from API to google sheet
 def putOnSheet(myList,nameSheet):
-    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-    SERVICE_ACCOUNT_FILE = 'keys.json'
-    SAMPLE_SPREADSHEET_ID = 'your spreadsheet file id'
-
-    creds = None
-    creds = service_account.Credentials.from_service_account_file(
-             SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-    service = build('sheets', 'v4', credentials=creds)
-    sheet = service.spreadsheets()
+    
     global timeAddedOnGS
     #we are adding time on spreadsheet when program started work
     if(timeAddedOnGS == False):
@@ -299,7 +304,7 @@ def putOnSheet(myList,nameSheet):
     #global summary    
     if(nameSheet=="sumarryV2"):
 
-        global sumarryRow
+        #global sumarryRow
         sheetLocation = "sumarry!B"+str(sumarryRow)
         
         request = sheet.values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID,range=sheetLocation,
@@ -311,7 +316,7 @@ def putOnSheet(myList,nameSheet):
 
         for x in range(len(myList)):
             eventName = nameSheet +"!G"+ str(currentRowInSheet) 
-            # we don't want to have empty rows in our spreed
+            # we don't want to have empty rows in our spread
             if(myList[x][1]!=0):
 
                 listToSend = [(myList[x][0],myList[x][1],myList[x][2],myList[x][3],myList[x][4],myList[x][5],myList[x][6])]
@@ -321,49 +326,69 @@ def putOnSheet(myList,nameSheet):
         currentRowInSheet= currentRowInSheet + 1
 
 #saving current inventory check to history sheet
-def addToHistory(rowsInSumarry):  
+def addToHistory(rowsInSumarry,idDestination,action):  
 
-    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-    SERVICE_ACCOUNT_FILE = 'keys.json'
-    SAMPLE_SPREADSHEET_ID = 'your spreadsheet file id'
-
-    creds = None
-    creds = service_account.Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-    service = build('sheets', 'v4', credentials=creds)
-    sheet = service.spreadsheets() 
-
-    workOnDB(condition="read")
     
-    print("First row of current history: ",valueInt)
-    request_body = {
-        'requests': [
-            {
-                'copyPaste':{
-                    'source':{
 
-                        'sheetId': 'your sheet id in int',
-                        'startRowIndex': 1,
-                        'endRowIndex': 37,
-                        'startColumnIndex': 0,
-                        'endColumnIndex': 12
-                                            },
-                    'destination':{
+    if(action=="history"):
+        workOnDB(condition="read")   
+        print("First row of current history: ",valueInt)
+        request_body = {
+            'requests': [
+                {
+                    'copyPaste':{
+                        'source':{
 
-                        'sheetId': 'your sheet id in int',
-                        'startRowIndex': valueInt,
-                        'endRowIndex': valueInt+rowsInSumarry, # 36 cuz i have 36 rows in my summary
-                        'startColumnIndex': 0,
-                        'endColumnIndex': 12
+                            'sheetId': 0,
+                            'startRowIndex': 1,
+                            'endRowIndex': 1+rowsInSumarry,
+                            'startColumnIndex': 0,
+                            'endColumnIndex': 13
+                                                },
+                        'destination':{
 
-                    },
-                    'pasteType': 'PASTE_NORMAL'
+                            'sheetId': idDestination,
+                            'startRowIndex': valueInt,
+                            'endRowIndex': valueInt+rowsInSumarry, # 36 cuz i have 36 rows in my summary
+                            'startColumnIndex': 0,
+                            'endColumnIndex': 13
+
+                        },
+                        'pasteType': 'PASTE_NORMAL'
+                    }
                 }
-            }
-        ]
-    }
+            ]
+        }
+        response = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID,body=request_body).execute()
+        workOnDB(condition="update")
+    if(action=="compare"):
+        request_body = {
+            'requests': [
+                {
+                    'copyPaste':{
+                        'source':{
+
+                            'sheetId': 0,
+                            'startRowIndex': 1,
+                            'endRowIndex': 1+rowsInSumarry,
+                            'startColumnIndex': 0,
+                            'endColumnIndex': 13
+                                                },
+                        'destination':{
+
+                            'sheetId': idDestination,
+                            'startRowIndex': 1,
+                            'endRowIndex': 1+rowsInSumarry, # 36 cuz i have 36 rows in my summary
+                            'startColumnIndex': 15,
+                            'endColumnIndex': 28
+
+                        },
+                        'pasteType': 'PASTE_NORMAL'
+                    }
+                }
+            ]
+        }
     response = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID,body=request_body).execute()
-    workOnDB(condition="update")
 
 
 def workOnDB(condition,rowsInSumarry=37):
@@ -388,17 +413,123 @@ def workOnDB(condition,rowsInSumarry=37):
         connection.commit()
         connection.close()     
                 
+def colorDifferences(firstRow,lastRow):
+    
+    
+
+    response1 =  service.spreadsheets().values().get(
+        spreadsheetId = SAMPLE_SPREADSHEET_ID,
+        range = 'sumarry!L'+str(firstRow)+":L"+str(lastRow+1)
+    ).execute()
+
+    response2 =  service.spreadsheets().values().get(
+        spreadsheetId = SAMPLE_SPREADSHEET_ID,
+        range = 'sumarry!AA'+str(firstRow)+':AA'+str(lastRow+1)
+    ).execute()
+    
+    value1Array = np.zeros(len(response1["values"]))
+    value2Array = np.zeros(len(response1["values"]))
+
+    value1Tuple = response1['values']
+    value2Tuple = response2['values']
+
+    
+
+    for x in range(len(response1["values"])):
+
+        if len(value1Tuple[x]) != 0:
+            
+            value1 = value1Tuple[x][0]          
+            value2 = value2Tuple[x][0]
+
+            
+            if "," in value1:
+                value1 = value1.replace(",","")
+            if "," in value2:
+                value2 = value2.replace(",","")
+            value1Float = float(value1.replace(" zł",""))
+            value2Float = float(value2.replace(" zł",""))
+            
+            value1Array[x] = value1Float
+            value2Array[x] = value2Float
+
+
+    valuesCalculation = np.zeros(len(value1Array))
+    cellColors = pd.DataFrame(columns=['Red','Green','Blue'])
+    request = []
+    for x in range(len(value1Array)):
+        if value1Array[x] != 0 and value2Array[x] != 0:
+            valuesCalculation[x] = value1Array[x] - value2Array[x]
+            
+            if value1Array[x] > value2Array[x] and valuesCalculation[x]>0 and value1Array[x]<0:
+                valuesCalculation[x] = (valuesCalculation[x]/value1Array[x])*(-1)
+            elif value1Array[x] > value2Array[x]:
+                valuesCalculation[x] = (valuesCalculation[x]/value1Array[x])
+            elif value1Array[x] < value2Array[x] and valuesCalculation[x]<0 and value2Array[x]<0:
+                valuesCalculation[x] = (valuesCalculation[x]/value2Array[x])*(-1)
+            elif value1Array[x] < value2Array[x]:
+                valuesCalculation[x] = (valuesCalculation[x]/value2Array[x])
+
+            
+
+        if valuesCalculation[x]== 0:
+            cellColors.loc[len(cellColors.index)] = [1,1,1]
+        elif valuesCalculation[x] > 0 and valuesCalculation[x] <= 0.05:
+            cellColors.loc[len(cellColors.index)] = [0.8,1,0.8]
+        elif valuesCalculation[x] > 0.05 and valuesCalculation[x] <= 0.10:
+            cellColors.loc[len(cellColors.index)] = [0.4,1,0.4]
+        elif valuesCalculation[x] > 0.10 and valuesCalculation[x] <= 0.15:
+            cellColors.loc[len(cellColors.index)] = [0,1,0]
+        elif valuesCalculation[x] > 0.15:
+            cellColors.loc[len(cellColors.index)] = [0,0.6,0]
+        elif valuesCalculation[x] >=-0.05 and valuesCalculation[x] < 0:
+            cellColors.loc[len(cellColors.index)] = [1,0.8,0.8]
+        elif valuesCalculation[x] >=-0.10 and valuesCalculation[x] < -0.05:
+            cellColors.loc[len(cellColors.index)] = [1,0.4,0.4]
+        elif valuesCalculation[x] >=-0.15 and valuesCalculation[x] < -0.10:
+            cellColors.loc[len(cellColors.index)] = [1,0.2,0.2]
+        elif valuesCalculation[x] < -0.15:
+            cellColors.loc[len(cellColors.index)] = [1,0,0]
+        #print("Row:",x+3)
+        #print(valuesCalculation[x]," and color ", cellColors.loc[len(cellColors.index)-1])
+        request.append(
+            
+            {
+            "updateCells": {
+            "rows": [
+                {
+                    "values": [{
+                                   "userEnteredFormat": {
+                                       "backgroundColor": {
+                                           "red": cellColors['Red'][x],
+                                           "green": cellColors['Green'][x],
+                                           "blue": cellColors['Blue'][x]
+                                           #"alpha": 0.8
+                                       }}}
+                    ]
+                }
+            ],
+            "fields": 'userEnteredFormat.backgroundColor',
+            "range": {
+                "sheetId": 0,
+                "startRowIndex": 2+x,
+                "endRowIndex": 3+x,
+                "startColumnIndex": 11,
+                "endColumnIndex": 12
+            }}})
+
+        body = {
+            'requests': request
+        }
         
-
-        
-        
-
-
-
+    response = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID,body=body).execute()
+       
 
 # DB: ID, linkPrice, linkDailySell, name, quantity, purchasePrice, 
 # currentPrice, volumeMarket, dailySell
 
+
+addToHistory(36,0,"compare")
 putOnSheet(addDataFromAPI(readTable("caseTable")),"caseSpreed")
 print("END case")
 putOnSheet(addDataFromAPI(readTable("souvenirTable")),"souvenirSpreed")
@@ -424,7 +555,9 @@ if (errorCounter != 0):
     for x in range(len(arrayOfErrors)):
         print("The following error, number:  ",arrayOfErrors[x][0]," name: ",arrayOfErrors[x][1]) 
 
-addToHistory(36)
+colorDifferences(3,37)
+addToHistory(36,192195635,"history")
+
 
 
 
