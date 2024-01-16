@@ -82,7 +82,7 @@ def readTable(nameTable):
 def addDataFromAPI(myList):
     myArray = np.array(myList,dtype="object")
     
-
+# Here is supposed to be while loop cuz in for loop u can't affect on iteration number ( it's when we can't get response from server - 503 server reponse)
     for row in range(len(myArray)):
         try:
             apiDict1 = readFromAPI(myArray[row][1])
@@ -173,6 +173,9 @@ def makeSummary(array):
 
 
 # Summing all values of specific item type (paper, glitter holos etc.), we are doing this to have overview (summary in google sheets)
+
+# The whole function is not necessary, better option might be put everything in sql database and sum everything by event name
+
 def sumValues(myArray):
     # name, quantity, volume market, cost, current total value, ROI 
 
@@ -184,7 +187,7 @@ def sumValues(myArray):
     Antwerp2022 = "Antwerp 2022 " + currentTable
     Rio2022 = "Rio 2022 "+currentTable
     Paris2023 = "Paris 2023 "+ currentTable
-
+# U can't use in numpy arrays multiple data types (arrays built in python can have different data types) soo better option for this might be dataframe from pandas
     arraySum = np.array([[Rmr2020,0,0,0.,0.,0.,0.],[Stockholm2021,0,0,0.,0.,0.,0.],
                          [Antwerp2022,0,0,0.,0.,0.,0.],[Rio2022,0,0,0.,0.,0.,0.],
                          [Paris2023,0,0,0.,0.,0.,0.]],dtype=object)
@@ -457,6 +460,7 @@ def colorDifferences(firstRow,lastRow):
     valuesCalculation = np.zeros(len(value1Array))
     cellColors = pd.DataFrame(columns=['Red','Green','Blue'])
     request = []
+
     for x in range(len(value1Array)):
         if value1Array[x] != 0 and value2Array[x] != 0:
             valuesCalculation[x] = value1Array[x] - value2Array[x]
