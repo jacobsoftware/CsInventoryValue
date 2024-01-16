@@ -38,6 +38,8 @@ sheet = service.spreadsheets()
 # reading steam API from endpoints that we have in our database
 def readFromAPI(url):
 
+# There is not supposed to be try and expect cuz we need it in outer function xd
+        
     try:
         
         global requestCounter
