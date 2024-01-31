@@ -84,7 +84,7 @@ def readTable(nameTable):
 def addDataFromAPI(myList):
     myArray = np.array(myList,dtype="object")
     
-# Here is supposed to be while loop cuz in for loop u can't affect on iteration number ( it's when we can't get response from server - 503 server reponse)
+# idk this code is literal garbage
     for row in range(len(myArray)):
         try:
             apiDict1 = readFromAPI(myArray[row][1])
